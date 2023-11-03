@@ -1,0 +1,115 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is a demo notebook for accessing/processing NASA data from the GES DISC.
+
+The basic workflow is 
+
+* Make CMR requests to search for specific products
+* Obtain Amazon S3 credentials
+* Access desired datasets 
+* Perform analysis and display results
+
+*** 
+
+### Search CMR Catalogs and Obtain S3 URLs
+
+This step uses the `httr2` package and the CMR catalog to search for data products
+
+```{r cmr_libs, include=TRUE}
+library(httr2)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(s3fs)
+library(ncdf4)
+```
+
+Make the CMR API request for OCO-2 LtCO2 products for Version 11.1r
+
+The final object parses the JSON response with the product information
+
+```{r cmr_req, include=TRUE}
+
+cmrurl <- 'https://cmr.earthdata.nasa.gov/search/granules'
+
+short_name <- 'OCO2_L2_Lite_FP'
+start_time <- '2020-07-05T00:00:00Z'
+end_time <- '2020-07-07T00:00:00Z'
+tmstr <- paste(start_time,end_time,sep=",")
+
+rqoco <- request(cmrurl) %>% 
+         req_headers("Accept" = "application/json") %>% 
+         req_url_query(short_name=short_name,temporal=tmstr,page_size="200",version='11.1r') %>%
+         req_method("GET") %>% req_perform()     
+
+granv11 <- rqoco %>% resp_body_json()
+
+```
+
+Now, the S3 URLs of the relevant products are extracted 
+
+```{r cmr_s3_list, include=TRUE}
+
+nprd <- length(granv11$feed$entry)
+s3url <- NULL
+
+hrefs3 <- function(lnkidx, rflst) {
+    # Extract the full link from a GES DISC JSON link list
+    lnkvl <- rflst[[lnkidx]]$href
+    return(lnkvl)
+}
+
+for (i in seq(1,nprd)) {
+    nlnk <- length(granv11$feed$entry[[i]]$links)
+    mp1 <- unlist(map(seq(1,nlnk), .f= hrefs3, rflst = granv11$feed$entry[[1]]$links))
+    mtchs3 <- str_detect(mp1,"s3://")
+    s3url <- c(s3url,mp1[mtchs3])
+}
+
+print(s3url)
+```
+
+
+*** 
+
+### Obtain Amazon S3 credentials
+
+Instead of using a .netrc file, here the Earthdata credentials are input with the `req_auth_basic` function in the `httr2` package. A prompt for the password appears for the first run. The credentials can be archived in the `.Rhistory`
+
+```{r s3_cred, include=TRUE}
+
+gesdisc_s3 <- "https://data.gesdisc.earthdata.nasa.gov/s3credentials"
+
+# Get S3 credentials
+rqs3 <- request(gesdisc_s3) %>% req_auth_basic(username = 'jonhobbs515') %>% req_perform() 
+if (rqs3$status_code == 200) {
+  s3crd <- rqs3 %>% resp_body_json(check_type = FALSE)
+}
+
+
+```
+
+### Access desired datasets
+
+S3 direct access 
+```{r s3_access, include=TRUE}
+# Set access environmental paramters
+
+s3acc <- S3FileSystem$new(aws_access_key_id = s3crd$accessKeyId,
+                          aws_secret_access_key = s3crd$secretAccessKey,
+                          aws_session_token = s3crd$sessionToken,
+                          region_name = 'us-west-2')
+s3acc$file_info(s3url[1])
+
+# ncdf4 built without zarr support?
+nc1 <- nc_open(s3url[1])
+ltsdg <- ncvar_get(nc1,"sounding_id")
+nc_close(nc1)
+
+
+```
+
+
