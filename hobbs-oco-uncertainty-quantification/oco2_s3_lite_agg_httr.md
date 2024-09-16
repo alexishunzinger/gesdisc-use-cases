@@ -69,7 +69,7 @@ hrefs3 <- function(lnkidx, rflst) {
 
 for (i in seq(1,nprd)) {
     nlnk <- length(granv11$feed$entry[[i]]$links)
-    mp1 <- unlist(map(seq(1,nlnk), .f= hrefs3, rflst = granv11$feed$entry[[1]]$links))
+    mp1 <- unlist(map(seq(1,nlnk), .f= hrefs3, rflst = granv11$feed$entry[[i]]$links))
     mtchs3 <- str_detect(mp1,"s3://")
     s3url <- c(s3url,mp1[mtchs3])
 }
