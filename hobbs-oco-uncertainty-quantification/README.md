@@ -4,7 +4,7 @@ The scripts and notebooks in this directory focus on various aspects of uncertai
 
 The examples highlight analysis with OCO-2 and OCO-3 data products supporting UQ. Code for all examples can be executed in the AWS cloud environment, where GES DISC products can be accessed.
 
-## Example Notebooks 
+### Example Notebooks 
 
 * Aggregating XCO2 from OCO-2 lite products
     - [Python Notebook](oco2_s3_lite_agg.ipynb)
@@ -14,4 +14,4 @@ The examples highlight analysis with OCO-2 and OCO-3 data products supporting UQ
 * Combining information from OCO-2 L2 and lite products
     - [Python Notebook](oco2_s3_lite_l2dia_comp.ipynb)
 
-## Example Batch Scripts
+### Example Batch Scripts
